@@ -2,10 +2,62 @@
 
 Plugin that publish audio via rtmp for android and iOS
 
-Greeting a user with "Hello, world" is something that could be done in JavaScript. This plugin provides a simple example demonstrating how Cordova plugins work.
-
-## Using   
+## Installation  
     
 Install the plugin
 
     $ cordova plugin add https://github.com/lolblacklistm2w/Cordova-Rtmp-Audio-Publisher.git
+
+## Usage
+
+Initialize plugin
+
+    (<any>window).RtmpPlugin.init(
+        (response) => {
+          console.log("INIT RTMPPLUGIN SUCCESS" + response);
+        },
+        (error) => {
+          console.error("INIT RTMPPLUGIN Error" + error);
+        });
+
+ Start publishing
+    
+    (<any>window).RtmpPlugin.startPublish(
+        serverUrl, //The server url example: rtmp.com:1935
+        publishName, //The rtmp publisher name
+        (response) => {
+          console.log("PUBLISH RTMPPLUGIN SUCCESS", response);
+        },
+        (error) => {
+          console.error("PUBLISH RTMPPLUGIN ERROR" + error);
+        });
+    
+ Stop publishing
+ 
+     (<any>window).RtmpPlugin.stopPublish(
+        (response) => {         
+           console.log("UNPUBLISH RTMPPLUGIN SUCCESS", response);
+        },
+        (error) => {
+           console.error("UNPUBLISH RTMPPLUGIN ERROR" + error);
+        });
+      
+  Mute
+  
+      (<any>window).RtmpPlugin.mute(
+        (response) => {
+           console.log("MUTE RTMPPLUGIN SUCCESS", response);
+        },
+        (error) => { 
+           console.error("MUTE RTMPPLUGIN ERROR" + error);
+        });
+      
+  Unmute
+    
+      (<any>window).RtmpPlugin.unmute(
+        (responce) => {
+           console.log("UNMUTE RTMPPLUGIN SUCCESS", response);
+        },
+        (error) => {
+           console.error("UNMUTE RTMPPLUGIN ERROR" + error);
+        });
