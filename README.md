@@ -1,19 +1,14 @@
-# Cordova Hello World Plugin
+# Cordova Rtmp Audio Publisher
 
-Simple plugin that returns your string prefixed with hello.
+Plugin that publish audio via rtmp
 
 Greeting a user with "Hello, world" is something that could be done in JavaScript. This plugin provides a simple example demonstrating how Cordova plugins work.
 
-## Using
-
-Create a new Cordova Project
-
-    $ cordova create hello com.example.helloapp Hello
+## Using   
     
 Install the plugin
 
-    $ cd hello
-    $ cordova plugin add https://github.com/don/cordova-plugin-hello.git
+    $ cordova plugin add https://github.com/lolblacklistm2w/Cordova-Rtmp-Audio-Publisher.git
     
 
 Edit `www/js/index.js` and add the following code inside `onDeviceReady`
