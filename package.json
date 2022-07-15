@@ -1,0 +1,28 @@
+{
+  "name": "cordova-plugin-yale-rtmp",
+  "version": "0.0.1",
+  "description": "rtmp",
+  "cordova": {
+    "id": "cordova-plugin-yale-rtmp",
+    "platforms": [
+      "android",
+      "ios"
+    ]
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/babbellab/cordova-plugin-kiosk"
+  },
+  "keywords": [
+    "cordova",
+    "plugin",
+    "updater",
+    "ecosystem:cordova",
+    "cordova-android"
+  ],
+  "author": "m2w",
+  "license": "Apache-2",
+  "bugs": {
+    "url": "https://github.com/don/cordova-plugin-hello/issues"
+  }
+}
