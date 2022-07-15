@@ -2,6 +2,14 @@
 
 Plugin that publish audio via rtmp for android and iOS
 
+## Android/iOS Permissions
+
+For this plugin work correctly you must provide the following permissions:
+
+ Android
+ 
+ iOS
+
 ## Installation  
     
 Install the plugin
