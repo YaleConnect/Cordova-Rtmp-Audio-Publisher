@@ -78,7 +78,7 @@ public class RtmpActivity
   @Override
   public void onRtmpConnected(String msg) {
     this.callbackContext.success();
-    this.mute();
+   // this.mute();
   }
 
   @Override
