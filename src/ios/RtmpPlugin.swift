@@ -101,6 +101,9 @@ final class ExampleRecorderDelegate: DefaultAVRecorderDelegate {
         status: CDVCommandStatus_ERROR
       )
         print("STOPPP \(self.streamId)")
+        if(!rtmpStream.paused){
+            rtmpStream.paused.toggle()
+        }
         rtmpConnection.close()
         rtmpConnection.removeEventListener(.rtmpStatus, selector: #selector(rtmpStatusHandler), observer: self)
         rtmpConnection.removeEventListener(.ioError, selector: #selector(rtmpErrorHandler), observer: self)
@@ -161,7 +164,9 @@ final class ExampleRecorderDelegate: DefaultAVRecorderDelegate {
           status: CDVCommandStatus_OK,
           messageAs: "mute"
       )
-       rtmpStream.paused.toggle()
+        if(!rtmpStream.paused){
+            rtmpStream.paused.toggle()
+        }
       self.commandDelegate!.send(
           pluginResult,
           callbackId: command.callbackId
@@ -177,7 +182,9 @@ final class ExampleRecorderDelegate: DefaultAVRecorderDelegate {
           status: CDVCommandStatus_OK,
           messageAs: "unmute"
       )
-        rtmpStream.paused.toggle()
+        if(rtmpStream.paused){
+            rtmpStream.paused.toggle()
+        }
       self.commandDelegate!.send(
           pluginResult,
           callbackId: command.callbackId
@@ -204,7 +211,9 @@ final class ExampleRecorderDelegate: DefaultAVRecorderDelegate {
             rtmpConnection.connect(streamUrl)
             retryCount += 1
         case "NetStream.Publish.Start":
-            rtmpStream.paused.toggle()
+            if(!rtmpStream.paused){
+                rtmpStream.paused.toggle()
+            }
            let pluginResult = CDVPluginResult(
                 status: CDVCommandStatus_OK,
                 messageAs: "NetStream.Publish.Start"
