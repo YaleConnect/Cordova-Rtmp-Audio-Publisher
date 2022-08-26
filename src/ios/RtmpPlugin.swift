@@ -101,9 +101,7 @@ final class ExampleRecorderDelegate: DefaultAVRecorderDelegate {
         status: CDVCommandStatus_ERROR
       )
         print("STOPPP \(self.streamId)")
-        if(!rtmpStream.paused){
-            rtmpStream.paused.toggle()
-        }
+        rtmpStream.paused = false
         rtmpConnection.close()
         rtmpConnection.removeEventListener(.rtmpStatus, selector: #selector(rtmpStatusHandler), observer: self)
         rtmpConnection.removeEventListener(.ioError, selector: #selector(rtmpErrorHandler), observer: self)
@@ -230,4 +228,5 @@ final class ExampleRecorderDelegate: DefaultAVRecorderDelegate {
         rtmpConnection.connect(streamUrl)
     }
 }
+
 
