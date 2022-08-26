@@ -164,9 +164,7 @@ final class ExampleRecorderDelegate: DefaultAVRecorderDelegate {
           status: CDVCommandStatus_OK,
           messageAs: "mute"
       )
-        if(!rtmpStream.paused){
-            rtmpStream.paused.toggle()
-        }
+        rtmpStream.paused = true
       self.commandDelegate!.send(
           pluginResult,
           callbackId: command.callbackId
@@ -182,9 +180,7 @@ final class ExampleRecorderDelegate: DefaultAVRecorderDelegate {
           status: CDVCommandStatus_OK,
           messageAs: "unmute"
       )
-        if(rtmpStream.paused){
-            rtmpStream.paused.toggle()
-        }
+        rtmpStream.paused = false
       self.commandDelegate!.send(
           pluginResult,
           callbackId: command.callbackId
@@ -211,9 +207,7 @@ final class ExampleRecorderDelegate: DefaultAVRecorderDelegate {
             rtmpConnection.connect(streamUrl)
             retryCount += 1
         case "NetStream.Publish.Start":
-            if(!rtmpStream.paused){
-                rtmpStream.paused.toggle()
-            }
+            rtmpStream.paused = true
            let pluginResult = CDVPluginResult(
                 status: CDVCommandStatus_OK,
                 messageAs: "NetStream.Publish.Start"
@@ -236,3 +230,4 @@ final class ExampleRecorderDelegate: DefaultAVRecorderDelegate {
         rtmpConnection.connect(streamUrl)
     }
 }
+
