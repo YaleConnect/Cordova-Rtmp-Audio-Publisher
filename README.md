@@ -14,7 +14,7 @@ For this plugin work correctly you must provide the following permissions:
     
 Install the plugin
 
-    $ cordova plugin add https://github.com/lolblacklistm2w/Cordova-Rtmp-Audio-Publisher.git
+    $ cordova plugin add https://github.com/YaleConnect/Cordova-Rtmp-Audio-Publisher.git
 
 ## Usage
 
