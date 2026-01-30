@@ -2,16 +2,17 @@
 var exec = require("cordova/exec");
 
 var RtmpPlugin = {
-  startPublish: function (url, streamID, callback) {
+  startPublish: function (url, streamID, onSuccess, onFailure) {
     var options = {};
     options.url = url;
     options.streamID = streamID;
     exec(
       function (out) {
-        callback(out == "true");
+        onSuccess && onSuccess(out == "true");
       },
       function (error) {
         console.log("RtmpPlugin.startPublish failed: " + error);
+        onFailure && onFailure(error);
       },
       "RtmpPlugin",
       "startPublish",

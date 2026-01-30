@@ -21,6 +21,9 @@ final class ExampleRecorderDelegate: DefaultAVRecorderDelegate {
     }
 }
 @objc(RtmpPlugin) class RtmpPlugin : CDVPlugin {
+    private let ERROR_CODE_TWOWAY_ALREADY_ACTIVE = "TWOWAY_ALREADY_ACTIVE"
+    private let ERROR_CODE_RTMP_PUBLISH = "RTMP_PUBLISH_ERROR"
+    private let ERROR_CODE_RTMP_DISCONNECTED = "RTMP_DISCONNECTED"
     private var maxRetryCount: Int = 5
     private var streamId: String  = ""
     private var streamUrl: String  = ""
@@ -28,10 +31,12 @@ final class ExampleRecorderDelegate: DefaultAVRecorderDelegate {
     private var rtmpConnection = RTMPConnection()
     private var rtmpStream: RTMPStream!
     private var callbackId: String = ""
+    private var callbackHandled: Bool = false
   
     @objc(init:)
     func `init`(_ command: CDVInvokedUrlCommand) {
-      var pluginResult = CDVPluginResult(
+    callbackHandled = false
+    var pluginResult = CDVPluginResult(
         status: CDVCommandStatus_ERROR
       )
         print("INITTTTTT")
@@ -40,27 +45,11 @@ final class ExampleRecorderDelegate: DefaultAVRecorderDelegate {
                  print("In background")
             
           // self.startMicSession()
-            
             self.maxRetryCount = 5
             self.streamUrl  = ""
             self.streamId = ""
             self.retryCount = 0
-            self.rtmpConnection = RTMPConnection()
-            self.rtmpStream = RTMPStream(connection: self.rtmpConnection)
-            self.rtmpStream.receiveVideo = false;
-            self.rtmpStream.audioSettings = [
-                .sampleRate: 22050, .actualBitrate: 48 * 1000, .bitrate: 48 * 1000]
-            self.rtmpStream.recorderSettings = [
-                AVMediaType.audio: [
-                    AVFormatIDKey: Int(kAudioFormatMPEG4AAC),
-                    AVSampleRateKey: 0,
-                    AVNumberOfChannelsKey: 01
-                   // AVEncoderBitRateKey: 128000
-                ]
-            ]
-            self.rtmpStream.attachAudio(AVCaptureDevice.default(for: AVMediaType.audio), automaticallyConfiguresApplicationAudioSession: false){ error in
-                print(error)
-            }
+            self.resetStream()
       
      
              }
@@ -90,9 +79,52 @@ final class ExampleRecorderDelegate: DefaultAVRecorderDelegate {
            //  try session.setPreferredInputNumberOfChannels(1)
     
              try session.setActive(true)
-         } catch {
-             print(error)
-         }
+        } catch {
+            print(error)
+        }
+    }
+
+    private func configureStream(_ stream: RTMPStream) {
+        stream.receiveVideo = false
+        stream.audioSettings = [
+            .sampleRate: 22050, .actualBitrate: 48 * 1000, .bitrate: 48 * 1000
+        ]
+        stream.recorderSettings = [
+            AVMediaType.audio: [
+                AVFormatIDKey: Int(kAudioFormatMPEG4AAC),
+                AVSampleRateKey: 0,
+                AVNumberOfChannelsKey: 1
+            ]
+        ]
+        stream.attachAudio(
+            AVCaptureDevice.default(for: AVMediaType.audio),
+            automaticallyConfiguresApplicationAudioSession: false
+        ) { error in
+            print(error)
+        }
+    }
+
+    private func detachConnectionListeners(from connection: RTMPConnection) {
+        connection.removeEventListener(.rtmpStatus, selector: #selector(rtmpStatusHandler), observer: self)
+        connection.removeEventListener(.ioError, selector: #selector(rtmpErrorHandler), observer: self)
+    }
+
+    private func attachConnectionListeners() {
+        rtmpConnection.addEventListener(.rtmpStatus, selector: #selector(rtmpStatusHandler), observer: self)
+        rtmpConnection.addEventListener(.ioError, selector: #selector(rtmpErrorHandler), observer: self)
+    }
+
+    private func closeConnection() {
+        detachConnectionListeners(from: self.rtmpConnection)
+        self.rtmpConnection.close()
+        self.rtmpStream?.close()
+    }
+
+    private func resetStream() {
+        closeConnection()
+        self.rtmpConnection = RTMPConnection()
+        self.rtmpStream = RTMPStream(connection: self.rtmpConnection)
+        configureStream(self.rtmpStream)
     }
     
     @objc(stopPublish:)
@@ -101,7 +133,6 @@ final class ExampleRecorderDelegate: DefaultAVRecorderDelegate {
         status: CDVCommandStatus_ERROR
       )
         print("STOPPP \(self.streamId)")
-        rtmpStream.paused = false
         rtmpConnection.close()
         rtmpConnection.removeEventListener(.rtmpStatus, selector: #selector(rtmpStatusHandler), observer: self)
         rtmpConnection.removeEventListener(.ioError, selector: #selector(rtmpErrorHandler), observer: self)
@@ -136,12 +167,13 @@ final class ExampleRecorderDelegate: DefaultAVRecorderDelegate {
                print("In background")
           self.streamId = streamId
           self.streamUrl = uri
-          self.rtmpConnection.addEventListener(.rtmpStatus, selector: #selector(self.rtmpStatusHandler), observer: self)
-          self.rtmpConnection.addEventListener(.ioError, selector: #selector(self.rtmpErrorHandler), observer: self)
+          self.resetStream()
+          self.attachConnectionListeners()
           print("START PUBLISH  \(uri)")
           self.rtmpConnection.connect(uri)
       }
       self.callbackId = command.callbackId
+      self.callbackHandled = false
     /*pluginResult = CDVPluginResult(
         status: CDVCommandStatus_OK,
         messageAs: "Streaming to \(uri)"
@@ -162,7 +194,7 @@ final class ExampleRecorderDelegate: DefaultAVRecorderDelegate {
           status: CDVCommandStatus_OK,
           messageAs: "mute"
       )
-        rtmpStream.paused = true
+       rtmpStream.paused.toggle()
       self.commandDelegate!.send(
           pluginResult,
           callbackId: command.callbackId
@@ -178,7 +210,7 @@ final class ExampleRecorderDelegate: DefaultAVRecorderDelegate {
           status: CDVCommandStatus_OK,
           messageAs: "unmute"
       )
-        rtmpStream.paused = false
+        rtmpStream.paused.toggle()
       self.commandDelegate!.send(
           pluginResult,
           callbackId: command.callbackId
@@ -198,24 +230,23 @@ final class ExampleRecorderDelegate: DefaultAVRecorderDelegate {
             rtmpStream.publish(streamId)
        
         case RTMPConnection.Code.connectFailed.rawValue, RTMPConnection.Code.connectClosed.rawValue:
-            guard retryCount <= self.maxRetryCount else {
-                return
-            }
-            Thread.sleep(forTimeInterval: pow(2.0, Double(retryCount)))
-            rtmpConnection.connect(streamUrl)
-            retryCount += 1
-        case "NetStream.Publish.Start":
-            rtmpStream.paused = true
-           let pluginResult = CDVPluginResult(
-                status: CDVCommandStatus_OK,
-                messageAs: "NetStream.Publish.Start"
+            sendFailure(
+                code: ERROR_CODE_RTMP_DISCONNECTED,
+                message: "El servidor cerró la conexión sin responder"
             )
+            resetStream()
+            return
+        case "NetStream.Publish.Start":
+            rtmpStream.paused.toggle()
             print("netstream start")
             print(self.callbackId)
-            self.commandDelegate!.send(
-                pluginResult,
-                callbackId: self.callbackId
-            )
+            sendSuccess()
+        case "NetStream.Publish.BadName",
+             "NetStream.Publish.BadType",
+             "NetStream.Publish.BadArgument",
+             "NetStream.Publish.BadStreamName":
+            print("netstream publish error: \(code)")
+            handleStreamBusy()
         default:
             break
         }
@@ -223,10 +254,53 @@ final class ExampleRecorderDelegate: DefaultAVRecorderDelegate {
 
     @objc
     private func rtmpErrorHandler(_ notification: Notification) {
+        sendFailure(
+            code: ERROR_CODE_RTMP_PUBLISH,
+            message: "Error de transmisi?n: \(notification)"
+        )
         print("ERRRORRRRR")
         print(notification)
-        rtmpConnection.connect(streamUrl)
+        resetStream()
+    }
+    
+    private func sendSuccess() {
+        guard !callbackHandled else { return }
+        callbackHandled = true
+        let pluginResult = CDVPluginResult(
+            status: CDVCommandStatus_OK,
+            messageAs: true
+        )
+        self.commandDelegate!.send(
+            pluginResult,
+            callbackId: self.callbackId
+        )
+    }
+
+    private func sendFailure(code: String, message: String) {
+        guard !callbackHandled else { return }
+        callbackHandled = true
+        let payload: [String: String] = ["code": code, "message": message]
+        let pluginResult = CDVPluginResult(
+            status: CDVCommandStatus_ERROR,
+            messageAs: payload
+        )
+        self.commandDelegate!.send(
+            pluginResult,
+            callbackId: self.callbackId
+        )
+    }
+
+    private func cancelReadyTimer() {
+        // Placeholder para compatibilidad; si tuvieramos un Timer lo invalidar?amos aqu?.
+    }
+
+    private func handleStreamBusy() {
+        cancelReadyTimer()
+        closeConnection()
+        sendFailure(
+            code: ERROR_CODE_TWOWAY_ALREADY_ACTIVE,
+            message: "La transmisi?n ya est? en uso"
+        )
+        resetStream()
     }
 }
-
-
