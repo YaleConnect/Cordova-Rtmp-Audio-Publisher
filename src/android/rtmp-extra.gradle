@@ -1,5 +1,8 @@
 // Dependencia del módulo :library (simplertmp) requerida por RtmpActivity.
 // Se aplica desde capacitor-cordova-android-plugins/build.gradle en cada cap sync.
-dependencies {
-    implementation project(':library')
+def libProject = rootProject.findProject(':library')
+if (libProject != null) {
+    project.dependencies.add('implementation', libProject)
+} else {
+    project.dependencies.add('implementation', project.project(':library'))
 }
