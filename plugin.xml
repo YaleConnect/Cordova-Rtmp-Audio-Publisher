@@ -18,6 +18,9 @@
 
   <platform name="android">
 
+    <framework custom="true" type="gradleReference" src="src/android/rtmp-extra.gradle" />
+
+
     <config-file target="res/xml/config.xml" parent="/*">
       <feature name="RtmpPlugin">
         <param
