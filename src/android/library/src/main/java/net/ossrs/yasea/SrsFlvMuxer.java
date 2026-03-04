@@ -86,8 +86,8 @@ public class SrsFlvMuxer {
     private void disconnect() {
         try {
             publisher.close();
-        } catch (IllegalStateException e) {
-            // Ignore illegal state.
+        } catch (Exception e) {
+            Log.w(TAG, "disconnect(): publisher.close() threw, ignoring", e);
         }
         mVideoSequenceHeader = null;
         mAudioSequenceHeader = null;

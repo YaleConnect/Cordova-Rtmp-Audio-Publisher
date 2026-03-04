@@ -312,23 +312,23 @@ public class RtmpConnection implements RtmpPublisher {
 
     @Override
     public void close() {
-        if (socket != null) {
+        if (socket != null && connected && rtmpSessionInfo != null) {
             closeStream();
         }
         shutdown();
     }
 
     private void closeStream() {
-        if (!connected) {
-            mHandler.notifyRtmpIllegalStateException(new IllegalStateException("Not connected to RTMP server"));
+        if (!connected || rtmpSessionInfo == null) {
+            Log.w(TAG, "closeStream(): already disconnected or session is null, skipping");
             return;
         }
         if (currentStreamId == 0) {
-            mHandler.notifyRtmpIllegalStateException(new IllegalStateException("No current stream object exists"));
+            Log.w(TAG, "closeStream(): no current stream, skipping");
             return;
         }
         if (!publishPermitted) {
-            mHandler.notifyRtmpIllegalStateException(new IllegalStateException("Not get _result(Netstream.Publish.Start)"));
+            Log.w(TAG, "closeStream(): publish not permitted, skipping");
             return;
         }
         Log.d(TAG, "closeStream(): setting current stream ID to 0");
@@ -485,17 +485,22 @@ public class RtmpConnection implements RtmpPublisher {
 
     private void sendRtmpPacket(RtmpPacket rtmpPacket) {
         try {
-            ChunkStreamInfo chunkStreamInfo = rtmpSessionInfo.getChunkStreamInfo(rtmpPacket.getHeader().getChunkStreamId());
+            final RtmpSessionInfo sessionInfo = rtmpSessionInfo;
+            final OutputStream out = outputStream;
+            if (sessionInfo == null || out == null) {
+                Log.w(TAG, "sendRtmpPacket(): session already closed, skipping");
+                return;
+            }
+            ChunkStreamInfo chunkStreamInfo = sessionInfo.getChunkStreamInfo(rtmpPacket.getHeader().getChunkStreamId());
             chunkStreamInfo.setPrevHeaderTx(rtmpPacket.getHeader());
             if (!(rtmpPacket instanceof Video || rtmpPacket instanceof Audio)) {
                 rtmpPacket.getHeader().setAbsoluteTimestamp((int) chunkStreamInfo.markAbsoluteTimestampTx());
             }
-            rtmpPacket.writeTo(outputStream, rtmpSessionInfo.getTxChunkSize(), chunkStreamInfo);
-            //Log.d(TAG, "wrote packet: " + rtmpPacket + ", size: " + rtmpPacket.getHeader().getPacketLength());
+            rtmpPacket.writeTo(out, sessionInfo.getTxChunkSize(), chunkStreamInfo);
             if (rtmpPacket instanceof Command) {
-                rtmpSessionInfo.addInvokedCommand(((Command) rtmpPacket).getTransactionId(), ((Command) rtmpPacket).getCommandName());
+                sessionInfo.addInvokedCommand(((Command) rtmpPacket).getTransactionId(), ((Command) rtmpPacket).getCommandName());
             }
-            outputStream.flush();
+            out.flush();
         } catch (SocketException se) {
             // Since there are still remaining AV frame in the cache, we set a flag to guarantee the
             // socket exception only issue one time.
