@@ -29,6 +29,8 @@ public class SrsFlvMuxer {
 
     private Thread worker;
     private final Object txFrameLock = new Object();
+    private final Object disconnectLock = new Object();
+    private volatile boolean disconnectStarted = false;
 
     private SrsFlv flv = new SrsFlv();
     private boolean needToFindKeyFrame = true;
@@ -128,6 +130,7 @@ public class SrsFlvMuxer {
      */
     public void start(final String rtmpUrl) {
         started = true;
+        disconnectStarted = false; 
         worker = new Thread(new Runnable() {
             @Override
             public void run() {
@@ -188,6 +191,13 @@ public class SrsFlvMuxer {
         flv.reset();
         needToFindKeyFrame = true;
         Log.i(TAG, "SrsFlvMuxer closed");
+        synchronized (disconnectLock) {
+            if (disconnectStarted) {
+                Log.d(TAG, "stop(): disconnect already in progress, skipping");
+                return;
+            }
+            disconnectStarted = true;
+        }
         // We should not block the main thread
         new Thread(new Runnable() {
             @Override

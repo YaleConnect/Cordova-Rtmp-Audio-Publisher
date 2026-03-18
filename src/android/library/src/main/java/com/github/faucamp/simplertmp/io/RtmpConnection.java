@@ -312,10 +312,12 @@ public class RtmpConnection implements RtmpPublisher {
 
     @Override
     public void close() {
-        if (socket != null && connected && rtmpSessionInfo != null) {
-            closeStream();
+        synchronized (this) {
+            if (socket != null && connected && rtmpSessionInfo != null) {
+                closeStream();
+            }
+            shutdown();
         }
-        shutdown();
     }
 
     private void closeStream() {
