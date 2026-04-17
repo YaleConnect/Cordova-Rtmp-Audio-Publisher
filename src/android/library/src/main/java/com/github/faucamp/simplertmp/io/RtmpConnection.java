@@ -55,7 +55,7 @@ public class RtmpConnection implements RtmpPublisher {
     private String swfUrl;
     private String tcUrl;
     private String pageUrl;
-    private Socket socket;
+    private volatile Socket socket;
     private String srsServerInfo = "";
     private String socketExceptionCause = "";
     private RtmpSessionInfo rtmpSessionInfo;
@@ -343,37 +343,57 @@ public class RtmpConnection implements RtmpPublisher {
     }
 
     private void shutdown() {
-        if (socket != null) {
-            try {
-                // It will raise EOFException in handleRxPacketThread
-                socket.shutdownInput();
-                // It will raise SocketException in sendRtmpPacket
-                socket.shutdownOutput();
-            } catch (IOException ioe) {
-                ioe.printStackTrace();
-            }
-
-            // shutdown rxPacketHandler
-            if (rxPacketHandler != null) {
-                rxPacketHandler.interrupt();
-                try {
-                    rxPacketHandler.join();
-                } catch (InterruptedException ie) {
-                    rxPacketHandler.interrupt();
-                }
-                rxPacketHandler = null;
-            }
-
-            // shutdown socket as well as its input and output stream
-            try {
-                socket.close();
-                Log.d(TAG, "socket closed");
-            } catch (IOException ex) {
-                Log.e(TAG, "shutdown(): failed to close socket", ex);
-            }
-
-            mHandler.notifyRtmpDisconnected();
+        // Capturamos referencias locales y nulificamos los campos compartidos DENTRO del
+        // monitor para garantizar que solo un thread haga el cierre real, aunque
+        // shutdown() pueda ser llamado concurrentemente desde rtmpConnect()/createStream()
+        // (en el worker thread) y desde close() (en el thread de disconnect).
+        Socket localSocket;
+        Thread localRxHandler;
+        synchronized (this) {
+            localSocket = socket;
+            localRxHandler = rxPacketHandler;
+            // Nulificamos primero para que cualquier shutdown() concurrente vea null
+            // y no intente cerrar de nuevo el mismo socket.
+            socket = null;
+            rxPacketHandler = null;
         }
+
+        if (localSocket == null) {
+            // Otro thread ya hizo el cierre; sólo aseguramos que el resto del estado quede limpio.
+            reset();
+            return;
+        }
+
+        try {
+            // It will raise EOFException in handleRxPacketThread
+            localSocket.shutdownInput();
+            // It will raise SocketException in sendRtmpPacket
+            localSocket.shutdownOutput();
+        } catch (IOException ioe) {
+            ioe.printStackTrace();
+        }
+
+        // shutdown rxPacketHandler
+        if (localRxHandler != null && localRxHandler != Thread.currentThread()) {
+            localRxHandler.interrupt();
+            try {
+                // Acotamos la espera para evitar bloquear el thread de UI/disconnect
+                // si el rxPacketHandler quedó atascado leyendo del socket.
+                localRxHandler.join(2000);
+            } catch (InterruptedException ie) {
+                localRxHandler.interrupt();
+            }
+        }
+
+        // shutdown socket as well as its input and output stream
+        try {
+            localSocket.close();
+            Log.d(TAG, "socket closed");
+        } catch (IOException ex) {
+            Log.e(TAG, "shutdown(): failed to close socket", ex);
+        }
+
+        mHandler.notifyRtmpDisconnected();
 
         reset();
     }

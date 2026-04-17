@@ -176,27 +176,38 @@ public class SrsFlvMuxer {
      * stop the muxer, disconnect RTMP connection.
      */
     public void stop() {
+        // Marcamos disconnectStarted al inicio para que callbacks reentrantes
+        // (p.ej. onRtmpDisconnected -> handleDisconnect -> stopStreaming -> stop())
+        // disparados durante la propia secuencia de cierre no lancen un segundo
+        // disconnect thread mientras el primero todavía corre.
+        boolean shouldDisconnect;
+        synchronized (disconnectLock) {
+            shouldDisconnect = !disconnectStarted;
+            disconnectStarted = true;
+        }
+
         started = false;
         mFlvTagCache.clear();
-        if (worker != null) {
-            worker.interrupt();
+        Thread localWorker = worker;
+        worker = null;
+        if (localWorker != null && localWorker != Thread.currentThread()) {
+            localWorker.interrupt();
             try {
-                worker.join();
+                // Acotamos la espera: si el worker quedó atascado en I/O, no podemos
+                // bloquear indefinidamente al thread que invocó stop() (típicamente UI).
+                localWorker.join(3000);
             } catch (InterruptedException e) {
                 e.printStackTrace();
-                worker.interrupt();
+                localWorker.interrupt();
             }
-            worker = null;
         }
         flv.reset();
         needToFindKeyFrame = true;
         Log.i(TAG, "SrsFlvMuxer closed");
-        synchronized (disconnectLock) {
-            if (disconnectStarted) {
-                Log.d(TAG, "stop(): disconnect already in progress, skipping");
-                return;
-            }
-            disconnectStarted = true;
+
+        if (!shouldDisconnect) {
+            Log.d(TAG, "stop(): disconnect already in progress, skipping");
+            return;
         }
         // We should not block the main thread
         new Thread(new Runnable() {
